@@ -32,7 +32,25 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 
 
+async function run() {
+    try {
+        await client.connect();
+        console.log("Connected to MongoDB!");
 
+        const partsCollection = client.db("loyalAutoParts").collection("parts");
+
+
+        // get all parts
+        app.get('/parts', async (req, res) => {
+            const parts = await partsCollection.find({}).skip(3).limit(3).toArray();
+            res.send(parts);
+        });
+
+    } finally {
+
+    }
+}
+run().catch(console.error);
 
 
 
