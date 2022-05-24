@@ -37,14 +37,37 @@ async function run() {
         await client.connect();
         console.log("Connected to MongoDB!");
 
+        // get all parts in partsCollectin db
         const partsCollection = client.db("loyalAutoParts").collection("parts");
 
 
-        // get all parts
+        // get 3 part in home page requrement-1
         app.get('/parts', async (req, res) => {
             const parts = await partsCollection.find({}).skip(3).limit(3).toArray();
             res.send(parts);
         });
+
+
+        // get all members in membersCollection db
+        const membersCollection = client.db("loyalAutoParts").collection("members");
+
+
+        // creating access token from ACCESS_TOKEN_SECRET
+        app.put('/login/:email', async (req, res) => {
+            const email = req.params.email;
+            console.log('email', email);
+            const user = req.body;
+            console.log('user', user);
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: user,
+            };
+            const result = await membersCollection.updateOne(filter, updateDoc, options);
+            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ result, token });
+        })
+
 
     } finally {
 
