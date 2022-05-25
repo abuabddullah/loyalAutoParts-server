@@ -73,7 +73,7 @@ async function run() {
 
         // get 3 part in home page requrement-1
         app.get('/parts', async (req, res) => {
-            const parts = await partsCollection.find({}).skip(3).toArray();
+            const parts = await partsCollection.find({}).toArray();
             res.send(parts);
         });
 
@@ -86,6 +86,20 @@ async function run() {
             // console.log(result);
             res.send(result)
         })
+
+
+        
+        // update latest available qty in parts collection
+        app.patch('/parts/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const newQty = req.body.newQty;
+            const update = { $set: { availableQty: newQty } };
+            const result = await partsCollection.updateOne(query, update);
+            // console.log(result);
+            res.send(result)
+        })
+
 
 
 
@@ -112,8 +126,45 @@ async function run() {
                 $set: user,
             };
             const result = await membersCollection.updateOne(filter, updateDoc, options);
-            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
             res.send({ result, token });
+        })
+
+
+
+
+
+        /* ==========>
+                        orders related APIs
+        <============= */
+
+
+        // get all members in membersCollection db
+        const ordersCollection = client.db("loyalAutoParts").collection("orders");
+
+
+        //POST- bookings verifying "same person same day same slot same treatment available or not"
+        app.post('/orders',verifyJWT, async (req, res) => {
+            const orderInfo = req.body;
+            const { partName, email, name } = orderInfo;
+            const query = { partName, email, name }
+            const exists = await ordersCollection.findOne(query);
+            if (exists) {
+                console.log('exists', exists);
+                const options = { upsert: true };
+                const {orderQty,totalPrice}=exists;
+                const updateDoc = {
+                    $set: { orderQty: orderQty + orderInfo.orderQty, totalPrice: totalPrice + orderInfo.totalPrice },
+                };
+                const result = await ordersCollection.updateOne(query, updateDoc,options);
+                // console.log('result', result);
+                res.send(result);
+            } else {
+                const result = await ordersCollection.insertOne(orderInfo);
+                // console.log('sending email 4 order');
+                // sendAppointmentEmail(orderInfo);
+                res.send({ result, success: 'Booking Successful' })
+            }
         })
 
 
