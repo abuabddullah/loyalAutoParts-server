@@ -32,10 +32,40 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 
 
+
+// /* verify token function */
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'unauthorized access! 401 verifyJWT' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).send({ message: 'Forbidden access! 403 verifyJWT' });
+        }
+        // console.log('decoded', decoded);
+        req.decoded = decoded; // add decoded-key to request-object i.e. decoded={email:"asdf@jkl.asd",lat:"ajdglk",long:"klfjg"}
+        next();
+    })
+}
+
+
+
 async function run() {
     try {
         await client.connect();
         console.log("Connected to MongoDB!");
+
+
+
+
+
+        
+        /* ==========>
+                        parts related APIs
+        <============= */
+
 
         // get all parts in partsCollectin db
         const partsCollection = client.db("loyalAutoParts").collection("parts");
@@ -43,9 +73,27 @@ async function run() {
 
         // get 3 part in home page requrement-1
         app.get('/parts', async (req, res) => {
-            const parts = await partsCollection.find({}).skip(3).limit(3).toArray();
+            const parts = await partsCollection.find({}).skip(3).toArray();
             res.send(parts);
         });
+
+
+        // GET one part details by id
+        app.get('/parts/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await partsCollection.findOne(query);
+            // console.log(result);
+            res.send(result)
+        })
+
+
+
+
+
+        /* ==========>
+                        members related APIs
+        <============= */
 
 
         // get all members in membersCollection db
