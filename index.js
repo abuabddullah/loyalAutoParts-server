@@ -1,6 +1,8 @@
 const express = require('express')
 const cors = require('cors')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require("stripe")('sk_test_51L0mz8C4IDVrgcznjJes3WtKlOiKFEsk4RIPj6neZjAiwDvfEqm6EOUSFqUscErRekE7QevGEKBaLK5UBz0iJe0i00XOCONFhE');
+// const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
 
@@ -20,7 +22,6 @@ const port = process.env.PORT || 5000;
 
 app.use(cors())
 app.use(express.json())
-
 
 
 
@@ -131,7 +132,7 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const options = { upsert: true };
             const update = { $set: partInfo };
-            const result = await partsCollection.updateOne(query, update,options);
+            const result = await partsCollection.updateOne(query, update, options);
             console.log(result);
             res.send(result)
         })
@@ -273,28 +274,30 @@ async function run() {
         const ordersCollection = client.db("loyalAutoParts").collection("orders");
 
 
+        // //POST- bookings verifying "same person same day same slot same treatment available or not"
+        // app.post('/orders', verifyJWT, async (req, res) => {
+        //     const orderInfo = req.body;
+        //     const { partName, email, name } = orderInfo;
+        //     const query = { partName, email, name }
+        //     const exists = await ordersCollection.findOne(query);
+        //     if (exists) {
+        //         res.send({ error: 'orders already exists', success: 'orders Failed', orders: exists })
+        //     } else {
+        //         const result = await ordersCollection.insertOne(orderInfo);
+        //         // console.log('sending email 4 order');
+        //         // sendAppointmentEmail(orderInfo);
+        //         res.send({ result, success: 'orders Successful' })
+        //     }
+        // })
+
+
         //POST- bookings verifying "same person same day same slot same treatment available or not"
         app.post('/orders', verifyJWT, async (req, res) => {
             const orderInfo = req.body;
-            const { partName, email, name } = orderInfo;
-            const query = { partName, email, name }
-            const exists = await ordersCollection.findOne(query);
-            if (exists) {
-                // console.log('exists', exists);
-                const options = { upsert: true };
-                const { orderQty, totalPrice } = exists;
-                const updateDoc = {
-                    $set: { orderQty: orderQty + orderInfo.orderQty, totalPrice: totalPrice + orderInfo.totalPrice },
-                };
-                const result = await ordersCollection.updateOne(query, updateDoc, options);
-                // console.log('result', result);
-                res.send(result);
-            } else {
-                const result = await ordersCollection.insertOne(orderInfo);
-                // console.log('sending email 4 order');
-                // sendAppointmentEmail(orderInfo);
-                res.send({ result, success: 'Booking Successful' })
-            }
+            const result = await ordersCollection.insertOne(orderInfo);
+            // console.log('sending email 4 order');
+            // sendAppointmentEmail(orderInfo);
+            res.send({ result, success: 'orders Successful' })
         })
 
 
@@ -386,6 +389,50 @@ async function run() {
             const reviews = await reviewsCollection.find({}).toArray();
             res.send(reviews);
         });
+
+
+
+        /* ==========>
+                        PAYMENT related APIs
+        <============= */
+
+
+        // get all members in membersCollection db
+        const paymentsCollection = client.db("loyalAutoParts").collection("payments");
+
+
+        // payment intent
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const totalPrice = req.body.totalPrice;
+
+            const amount = totalPrice * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret })
+        });
+
+
+        // saving paymetn info in db
+        app.patch('/payment/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId,
+                }
+            }
+
+            const result = await paymentsCollection.insertOne(payment);
+            const updatedBooking = await ordersCollection.updateOne(filter, updatedDoc);
+            // console.log('sending email 4 payment');
+            // sendPaymentConfirmationEmail(nee param );
+            res.send(updatedBooking);
+        })
 
 
     } finally {
