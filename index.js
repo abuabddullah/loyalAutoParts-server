@@ -335,6 +335,52 @@ async function run() {
 
 
         /* ==========>
+                        ORDERS+ADMIN related APIs
+        <============= */
+
+
+        //get all order of all members
+        app.get('/allOrders', verifyJWT, verifyAdmin, async (req, res) => {
+            const orders = await ordersCollection.find().toArray();
+            // console.log(orders);
+            res.send(orders);
+        })
+
+
+        //get all order of all members
+        app.delete('/allOrders/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            console.log('id', id);
+            const query = { _id: new ObjectId(id) };
+            const result = await ordersCollection.deleteOne(query);
+            // console.log(result);
+            res.send(result);
+        })
+
+
+        // saving paymetn info in db
+        app.patch('/allOrders/:id', verifyJWT,verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    shipped: true,
+                }
+            }
+            const updatedShipping = await ordersCollection.updateOne(filter, updatedDoc);
+            // console.log('sending email 4 payment');
+            // sendPaymentConfirmationEmail(nee param );
+            res.send(updatedShipping);
+        })
+
+
+
+
+
+
+
+
+        /* ==========>
                         regiews related APIs
         <============= */
 
