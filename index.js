@@ -61,7 +61,19 @@ async function run() {
 
 
 
-        
+        // verify admin or not 
+        const verifyAdmin = async (req, res, next) => {
+            const requesterEmail = req.decoded.email;
+            const requesterDetails = await membersCollection.findOne({ email: requesterEmail });
+            if (requesterDetails.role === 'admin') {
+                next();
+            } else {
+                return res.status(401).send({ message: 'unauthorized access! 401 verifyIsAdmin' });
+            }
+        }
+
+
+
         /* ==========>
                         parts related APIs
         <============= */
@@ -88,14 +100,58 @@ async function run() {
         })
 
 
-        
-        // update latest available qty in parts collection
+
+        // update latest available qty in parts collection after order placed
         app.patch('/parts/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const newQty = req.body.newQty;
             const update = { $set: { availableQty: newQty } };
             const result = await partsCollection.updateOne(query, update);
+            // console.log(result);
+            res.send(result)
+        })
+
+
+
+
+
+
+        /* ==========>
+                        parts+admin related APIs
+        <============= */
+
+
+
+        // update  partInfo in parts collection 
+        app.put('/manageProducts/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const partInfo = req.body;
+            console.log(partInfo);
+            const query = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const update = { $set: partInfo };
+            const result = await partsCollection.updateOne(query, update,options);
+            console.log(result);
+            res.send(result)
+        })
+
+
+        // post a new part in parts collection
+        app.post('/addProducts', verifyJWT, verifyAdmin, async (req, res) => {
+            const partInfo = req.body;
+            console.log(partInfo);
+            const result = await partsCollection.insertOne(partInfo);
+            // console.log(result);
+            res.send(result)
+        })
+
+
+        // delete a part from parts collection
+        app.delete('/deleteProducts/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await partsCollection.deleteOne(query);
             // console.log(result);
             res.send(result)
         })
@@ -160,6 +216,52 @@ async function run() {
 
 
 
+        /* ==========>
+                        members+admin related APIs
+        <============= */
+
+
+        // get to know user is admin or not
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = await membersCollection.findOne({ email: email });
+            const isAdmin = user.role === 'admin';
+            console.log(isAdmin);
+            res.send({ admin: isAdmin })
+        })
+
+
+        // get all members
+        app.get('/members', verifyJWT, verifyAdmin, async (req, res) => {
+            const members = await membersCollection.find().toArray();
+            res.send(members);
+        })
+
+
+        // empower an user as admin  by whom already in admin role
+        app.put('/admin/:email', verifyJWT, async (req, res) => {
+            const proposedEmail4Admin = req.params.email;
+            const decodedEmail = req.decoded.email;
+            const requesterEmail = decodedEmail;
+
+            const requesterDetails = await membersCollection.findOne({ email: requesterEmail });
+
+
+            if (requesterDetails.role === 'admin') {
+                const filter = { email: proposedEmail4Admin };
+                const update = { $set: { role: 'admin' } };
+                const result = await membersCollection.updateOne(filter, update);
+                res.send({ result, success: 'Admin role added' })
+            } else {
+                res.status(403).send({ error: 'forbidden authority' });
+            }
+        })
+
+
+
+
+
+
 
 
         /* ==========>
@@ -172,7 +274,7 @@ async function run() {
 
 
         //POST- bookings verifying "same person same day same slot same treatment available or not"
-        app.post('/orders',verifyJWT, async (req, res) => {
+        app.post('/orders', verifyJWT, async (req, res) => {
             const orderInfo = req.body;
             const { partName, email, name } = orderInfo;
             const query = { partName, email, name }
@@ -180,11 +282,11 @@ async function run() {
             if (exists) {
                 // console.log('exists', exists);
                 const options = { upsert: true };
-                const {orderQty,totalPrice}=exists;
+                const { orderQty, totalPrice } = exists;
                 const updateDoc = {
                     $set: { orderQty: orderQty + orderInfo.orderQty, totalPrice: totalPrice + orderInfo.totalPrice },
                 };
-                const result = await ordersCollection.updateOne(query, updateDoc,options);
+                const result = await ordersCollection.updateOne(query, updateDoc, options);
                 // console.log('result', result);
                 res.send(result);
             } else {
@@ -212,7 +314,7 @@ async function run() {
             }
         })
 
-        
+
         // GET one appoinmetn details asper id
         app.get('/orders/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
@@ -239,7 +341,7 @@ async function run() {
 
 
         //POST- reviewing by checking done or not"
-        app.post('/reviews',verifyJWT, async (req, res) => {
+        app.post('/reviews', verifyJWT, async (req, res) => {
             const reviewInfo = req.body;
             const { email } = reviewInfo;
             const query = { email }
