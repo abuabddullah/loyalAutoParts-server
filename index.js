@@ -2,7 +2,6 @@ const express = require('express')
 const cors = require('cors')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const stripe = require("stripe")('sk_test_51L0mz8C4IDVrgcznjJes3WtKlOiKFEsk4RIPj6neZjAiwDvfEqm6EOUSFqUscErRekE7QevGEKBaLK5UBz0iJe0i00XOCONFhE');
-// const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
 
@@ -11,12 +10,6 @@ const app = express()
 const port = process.env.PORT || 5000;
 
 
-// const corsConfig = {
-//   origin: true,
-//   credentials: true,
-// }
-// app.use(cors(corsConfig))
-// app.options('*', cors(corsConfig))
 
 
 
@@ -274,21 +267,6 @@ async function run() {
         const ordersCollection = client.db("loyalAutoParts").collection("orders");
 
 
-        // //POST- bookings verifying "same person same day same slot same treatment available or not"
-        // app.post('/orders', verifyJWT, async (req, res) => {
-        //     const orderInfo = req.body;
-        //     const { partName, email, name } = orderInfo;
-        //     const query = { partName, email, name }
-        //     const exists = await ordersCollection.findOne(query);
-        //     if (exists) {
-        //         res.send({ error: 'orders already exists', success: 'orders Failed', orders: exists })
-        //     } else {
-        //         const result = await ordersCollection.insertOne(orderInfo);
-        //         // console.log('sending email 4 order');
-        //         // sendAppointmentEmail(orderInfo);
-        //         res.send({ result, success: 'orders Successful' })
-        //     }
-        // })
 
 
         //POST- bookings verifying "same person same day same slot same treatment available or not"
