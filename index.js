@@ -16,12 +16,15 @@ const port = process.env.PORT || 5000;
 app.use(cors())
 app.use(express.json())
 
-
+/* loyal car's cluster not resuming so i m taking taste recipes cluster */
+// taste recipes cluster uri starts
+const uri = "mongodb+srv://asifaowadud:sof6vxfRNfUEvdCg@cluster0.gjcwx8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// taste recipes cluster uri ends
 
 
 
 // const uri = "mongodb+srv://loyalcars12:loyalcars12@cluster0.cpxvj.mongodb.net/?retryWrites=true&w=majority";
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cpxvj.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cpxvj.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 
@@ -34,7 +37,7 @@ function verifyJWT(req, res, next) {
         return res.status(401).send({ message: 'unauthorized access! 401 verifyJWT' });
     }
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    jwt.verify(token, "process.env.ACCESS_TOKEN_SECRET", (err, decoded) => {
         if (err) {
             return res.status(403).send({ message: 'Forbidden access! 403 verifyJWT' });
         }
@@ -74,12 +77,13 @@ async function run() {
 
 
         // get all parts in partsCollectin db
-        const partsCollection = client.db("loyalAutoParts").collection("parts");
+        const partsCollection = client.db("loyalAutoPartsDB").collection("parts");
 
 
         // get 3 part in home page requrement-1
         app.get('/parts', async (req, res) => {
             const parts = await partsCollection.find({}).toArray();
+            console.log(parts);
             res.send(parts);
         });
 
@@ -161,7 +165,7 @@ async function run() {
 
 
         // get all members in membersCollection db
-        const membersCollection = client.db("loyalAutoParts").collection("members");
+        const membersCollection = client.db("loyalAutoPartsDB").collection("members");
 
 
         // creating access token from ACCESS_TOKEN_SECRET
@@ -176,7 +180,7 @@ async function run() {
                 $set: user,
             };
             const result = await membersCollection.updateOne(filter, updateDoc, options);
-            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
+            const token = jwt.sign({ email: email }, "process.env.ACCESS_TOKEN_SECRET", { expiresIn: '1d' })
             res.send({ result, token });
         })
 
@@ -219,7 +223,7 @@ async function run() {
         app.get('/admin/:email', async (req, res) => {
             const email = req.params.email;
             const user = await membersCollection.findOne({ email: email });
-            const isAdmin = user.role === 'admin';
+            const isAdmin = user?.role === 'admin';
             console.log(isAdmin);
             res.send({ admin: isAdmin })
         })
@@ -264,7 +268,7 @@ async function run() {
 
 
         // get all members in membersCollection db
-        const ordersCollection = client.db("loyalAutoParts").collection("orders");
+        const ordersCollection = client.db("loyalAutoPartsDB").collection("orders");
 
 
 
@@ -364,7 +368,7 @@ async function run() {
 
 
         // get all members in membersCollection db
-        const reviewsCollection = client.db("loyalAutoParts").collection("reviews");
+        const reviewsCollection = client.db("loyalAutoPartsDB").collection("reviews");
 
 
         //POST- reviewing by checking done or not"
@@ -422,7 +426,7 @@ async function run() {
 
 
         // get all members in membersCollection db
-        const paymentsCollection = client.db("loyalAutoParts").collection("payments");
+        const paymentsCollection = client.db("loyalAutoPartsDB").collection("payments");
 
 
         // payment intent
